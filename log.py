@@ -9,8 +9,9 @@ sep = False
 file = False
 no_newline = False
 help = False
+idclass = False
 
-file_location = '/var/mobile/Documents/nlgf.log'
+file_location = '/var/mobile/Documents/nslog.log'
 parse_location = ''
 prefix = 'NSLG'
 
@@ -45,6 +46,11 @@ def getLogString(funcname, interface):
 
 			log_string += ' ' + val_name + ((': ' + (reg_types[val_type] if val_type in reg_types else "nil")) if not (val_type == val_name == var) else '')
 			vars_string += f', {var}' if val_type in reg_types else ''
+
+			if idclass and val_type == 'id':
+				log_string += ' (class: %@)'
+				vars_string += f', [{var} class]'
+
 			sec = ''
 
 	log_string += ' in ' + interface
@@ -52,6 +58,9 @@ def getLogString(funcname, interface):
 	if ret_type != 'void':
 		log_string += ' with a return of ' + reg_types[ret_type if ret_type in reg_types else 'id']
 		vars_string += ', orig'
+		if idclass and ret_type == 'id':
+			log_string += ' (class: %@)'
+			vars_string += ', [orig class]'
 
 	log_string += f'"{vars_string}];'
 	nslog = ''
@@ -136,6 +145,7 @@ def parseArgs():
 	global prefix
 	global no_newline
 	global parse_location
+	global idclass
 
 	skip = False
 
@@ -151,6 +161,8 @@ def parseArgs():
 					no_newline = True
 				elif c == 'h':
 					help = True
+				elif c == 'c':
+					idclass = True
 		elif a in ('-s', '--sep'):
 			sep = True
 		elif a in ('-f', '--file'):
@@ -172,6 +184,8 @@ def parseArgs():
 			else:
 				prefix = argv[n+1]
 				skip = True
+		elif a in ('-c', '--class'):
+			idclass = True
 		elif n == len(argv) - 1:
 			parse_location = a
 		else:
@@ -188,8 +202,9 @@ def printHelp():
 	    -n, --newline : Removes newlines from the log string so that everything is on one line and will work well
 	                    with programs like grep when parsing output
 	    -f, --file    : Logs output to a specific file instead of NSLog. You can specify a file location to log to by specifying
-	                    a file location after this, e.g. \033[1m-f /var/mobile/log.log\033[0m ; if you use this flag but don't specify a location, 
-	                    output will be logged to \033[1m/var/mobile/Documents/nlgf.log\033[0m
+	                    a file location after this, e.g. \033[1m-f /var/mobile/log.txt\033[0m ; if you use this flag but don't specify a location, 
+	                    output will be logged to \033[1m/var/mobile/Documents/nslog.log\033[0m
+	    -c, --class   : Will print the class each time it logs an object of type \033[1mid\033[0m
 	'''
 
 	print(help_msg)
