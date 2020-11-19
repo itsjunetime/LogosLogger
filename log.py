@@ -1,9 +1,15 @@
+import re
 from os import path
 from sys import argv
 
-reg_types = {'int': '%d', 'long long': '%lld', 'long': '%ld', 'float': '%f','NSString *': '%@', 
-            'char': '%c', '_Bool': '%d', 'BOOL': '%d', 'unsigned long long': '%llu', 'double': '%f',
-            'unsigned int': '%d', 'unsigned char': '%c', 'id': '%@', 'unsigned': '%d', 'unsigned short': '%hu'}
+reg_types = {'int': '%d', 'long long': '%lld', 'long': '%ld', 'float': '%f', 'char': '%c', 
+			'_Bool': '%d', 'BOOL': '%d', 'unsigned long long': '%llu', 'double': '%f',
+			'unsigned int': '%d', 'unsigned char': '%c', 'id': '%@', 'unsigned': '%d', 'unsigned short': '%hu',}
+
+bad_types = {'void', 'Class'}
+base_prefixes = {'NS', 'CF', 'UI', 'CA'}
+
+extra_types = set()
 
 sep = False
 file = False
@@ -17,7 +23,7 @@ prefix = 'NSLG'
 
 def getLogString(funcname, interface):
 	funcname = funcname.replace('CDUnknownBlockType', 'id').replace('out id *', 'id').replace('id *', 'id').replace(';', '').rstrip()
-	funcname = funcname.replace('oneway', '').replace('out ', 'id').replace('-(', '- (').replace('+(', '+ (')
+	funcname = re.sub(r'(\<.*\>|\/\*.*\*\/)', '', funcname.replace('oneway', '').replace('out ', 'id').replace('-(', '- (').replace('+(', '+ ('))
 	if 'cxx_destruct' in funcname:
 		return ''
 
@@ -26,6 +32,10 @@ def getLogString(funcname, interface):
 
 	if ret_type != 'void':
 		orig_string = f'\t{ret_type} orig = %orig;'
+
+	fixed_type = ret_type.replace('*', '').strip()
+	if fixed_type not in reg_types and fixed_type not in bad_types and ret_type[:2] not in base_prefixes:
+		extra_types.add(fixed_type)
 
 	log_string = f'\tNSString *log = [NSString stringWithFormat:@"{prefix}: Called'
 	vars_string = ''
@@ -42,10 +52,14 @@ def getLogString(funcname, interface):
 			past_index = n + 1
 			val_name = sec.split(':')[0]
 			val_type = sec.split('(')[-1].split(')')[0]
+			fixed_type = val_type.replace('*', '').strip()
 			var = sec.split(')')[-1]
 
-			log_string += ' ' + val_name + ((': ' + (reg_types[val_type] if val_type in reg_types else "nil")) if not (val_type == val_name == var) else '')
-			vars_string += f', {var}' if val_type in reg_types else ''
+			log_string += ' ' + val_name + ((': ' + (reg_types[fixed_type] if fixed_type in reg_types else "%@")) if not (val_type == val_name == var) else '')
+			if not val_type == val_name == var: vars_string += ', ' + (var if not ('*' in val_type and fixed_type in reg_types) else '*' + var)
+
+			if fixed_type not in reg_types and fixed_type not in bad_types and val_type != val_name and val_type[:2] not in base_prefixes:
+				extra_types.add(fixed_type)
 
 			if idclass and val_type == 'id':
 				log_string += ' (class: %@)'
@@ -71,11 +85,12 @@ def getLogString(funcname, interface):
 	if file:
 		nslog = f'\t[log writeToFile:@"{file_location}" atomically:NO encoding:NSStringEncodingConversionAllowLossy error:nil];'
 	else:
-		nslog = '\tNSLog(log);'
+		nslog = '\tNSLog(@"%@", log);'
 
 	return funcname + ' {\n' + orig_string + ('\n' if orig_string != '' else '') + log_string + '\n' + nslog + '\n' + ret_string + '\n}'
 
 def together():
+	ostr = ''
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
 		interface = ''
@@ -85,17 +100,19 @@ def together():
 				continue
 			elif '@interface' in i:
 				interface = i[i.index(' '):i.index(':')].strip()
-				print('%hook '  + interface)
-				print('')
+				ostr += f'%hook {interface}\n\n'
 				continue
 			elif (i[:3] in ('- (', '+ (') or i[:2] in ('-(', '+(')) and interface != '':
 				new_line = getLogString(i, interface)
-				print(new_line + '\n')
+				ostr += f'{new_line}\n\n'
 
-	if interface != '': print('%end\n')
+	if interface != '': ostr += '%end\n'
+
+	return ostr
 
 def separated():
 	hook_called = False
+	ostr = ''
 
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
@@ -118,23 +135,22 @@ def separated():
 							first_part = src_line[src_line.find(' '):].lstrip()
 							interface = first_part[:first_part.find(' ')]
 
-				if hook_called:
-					print('%end\n')
+				if hook_called: ostr += '%end\n\n'
 
-			if interface == '':
-				continue
+			if interface == '': continue
 
 			if src != past_src:
-				print(f'%hook {interface}\n')
+				ostr += f'%hook {interface}\n\n'
 				hook_called = True
 
 			substrings = line.split(':')
 			funcname = ':'.join(substrings[2:])
 			print_line = getLogString(funcname, interface)
 
-			print(print_line + '\n')
+			ostr += f'{print_line}\n\n'
 
-	print('\n%end')
+	ostr += '\n%end'
+	return ostr
 
 def parseArgs():
 	global help
@@ -150,7 +166,7 @@ def parseArgs():
 	skip = False
 
 	for n, a in enumerate(argv):
-		if skip or len(a) < 2:
+		if skip or len(a) < 2 or n == 0:
 			skip = False
 			continue
 		if a[0] == '-' and a[1] != '-' and len(a) > 2:
@@ -190,6 +206,7 @@ def parseArgs():
 			parse_location = a
 		else:
 			print(f'Unrecognized option \033[1m{a}\033[0m. Exiting...')
+			exit()
 
 def printHelp():
 	help_msg = '''
@@ -205,6 +222,8 @@ def printHelp():
 	                    a file location after this, e.g. \033[1m-f /var/mobile/log.txt\033[0m ; if you use this flag but don't specify a location, 
 	                    output will be logged to \033[1m/var/mobile/Documents/nslog.log\033[0m
 	    -c, --class   : Will print the class each time it logs an object of type \033[1mid\033[0m
+	    -p, --prefix  : Allows you to specify a custom prefix, passed in directly after this flag (e.g. \033[1m-p "MYLOG"\033[0m ; without this flag, everything
+	                    will be logged with the prefix "NSLG"
 	'''
 
 	print(help_msg)
@@ -217,7 +236,11 @@ def main():
 	if help:
 		printHelp()
 
-	separated() if sep else together()
+	ostr = separated() if sep else together()
+	for i in extra_types:
+		print(f'@interface {i}\n@end\n')
+
+	print(ostr)
 
 if __name__ == '__main__':
 	main()
