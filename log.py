@@ -6,7 +6,7 @@ reg_types = {'int': '%d', 'long long': '%lld', 'long': '%ld', 'float': '%f', 'ch
 			'_Bool': '%d', 'BOOL': '%d', 'unsigned long long': '%llu', 'double': '%f',
 			'unsigned int': '%d', 'unsigned char': '%c', 'id': '%@', 'unsigned': '%d', 'unsigned short': '%hu',}
 
-bad_types = {'void', 'Class'}
+bad_types = {'void', 'Class', 'SEL'}
 base_prefixes = {'NS', 'CF', 'UI', 'CA'}
 
 extra_types = set()
@@ -56,7 +56,14 @@ def getLogString(funcname, interface):
 			var = sec.split(')')[-1]
 
 			log_string += ' ' + val_name + ((': ' + (reg_types[fixed_type] if fixed_type in reg_types else "%@")) if not (val_type == val_name == var) else '')
-			if not val_type == val_name == var: vars_string += ', ' + (var if not ('*' in val_type and fixed_type in reg_types) else '*' + var)
+			if not val_type == val_name == var: 
+				vars_string += ', '
+				if val_type == 'SEL':
+					vars_string += f'NSStringFromSelector({var})'
+				elif '*' not in val_type or fixed_type not in reg_types:
+					vars_string += var
+				else:
+					'*' + var
 
 			if fixed_type not in reg_types and fixed_type not in bad_types and val_type != val_name and val_type[:2] not in base_prefixes:
 				extra_types.add(fixed_type)
