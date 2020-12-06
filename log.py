@@ -63,7 +63,7 @@ def getLogString(funcname, interface):
 				elif '*' not in val_type or fixed_type not in reg_types:
 					vars_string += var
 				else:
-					'*' + var
+					vars_string += '*' + var
 
 			if fixed_type not in reg_types and fixed_type not in bad_types and val_type != val_name and val_type[:2] not in base_prefixes:
 				extra_types.add(fixed_type)
@@ -240,7 +240,7 @@ def main():
 	global help
 	parseArgs()
 
-	if help:
+	if help or len(argv) == 1:
 		printHelp()
 
 	ostr = separated() if sep else together()
