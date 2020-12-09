@@ -60,6 +60,8 @@ def getLogString(funcname, interface):
 				vars_string += ', '
 				if val_type == 'SEL':
 					vars_string += f'NSStringFromSelector({var})'
+				elif 'NSRange' in val_type:
+					vars_string += f'NSStringFromRange({var})'
 				elif '*' not in val_type or fixed_type not in reg_types:
 					vars_string += var
 				else:
