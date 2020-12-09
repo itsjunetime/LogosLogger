@@ -92,7 +92,14 @@ def getLogString(funcname, interface):
 		log_string += '\n\tlog = [[log stringByReplacingOccurrencesOfString:@"\\n" withString:@""] stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];'
 
 	if file:
-		nslog = f'\t[log writeToFile:@"{file_location}" atomically:NO encoding:NSStringEncodingConversionAllowLossy error:nil];'
+		nslog = f'''	if ([[NSFileManager defaultManager] fileExistsAtPath:@"{file_location}"]) {{
+		NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:@"{file_location}"];
+		[handle seekToEndOfFile];
+		[handle writeData:[[NSString stringWithFormat: @"%@\\n", log] dataUsingEncoding:NSUTF8StringEncoding]];
+		[handle closeFile];
+	}} else {{
+		[log writeToFile:@"{file_location}" atomically:NO encoding:NSStringEncodingConversionAllowLossy error:nil];
+	}}'''
 	else:
 		nslog = '\tNSLog(@"%@", log);'
 
