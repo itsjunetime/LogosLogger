@@ -3,7 +3,7 @@ from os import path
 from sys import argv
 
 reg_types = {'int': '%d', 'long long': '%lld', 'long': '%ld', 'float': '%f', 'char': '%c', 
-			'_Bool': '%d', 'BOOL': '%d', 'unsigned long long': '%llu', 'double': '%f',
+			'_Bool': '%d', 'BOOL': '%d', 'bool': '%d', 'unsigned long long': '%llu', 'double': '%f',
 			'unsigned int': '%d', 'unsigned char': '%c', 'id': '%@', 'unsigned': '%d', 'unsigned short': '%hu',}
 
 bad_types = {'void', 'Class', 'SEL'}
