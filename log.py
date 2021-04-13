@@ -16,6 +16,7 @@ file = False
 no_newline = False
 help = False
 idclass = False
+no_uikit = False
 
 file_location = '/var/mobile/Documents/nslog.log'
 parse_location = ''
@@ -106,7 +107,7 @@ def getLogString(funcname, interface):
 	return funcname + ' {\n' + orig_string + ('\n' if orig_string != '' else '') + log_string + '\n' + nslog + '\n' + ret_string + '\n}'
 
 def together():
-	ostr = ''
+	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>'
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
 		interface = ''
@@ -128,7 +129,7 @@ def together():
 
 def separated():
 	hook_called = False
-	ostr = ''
+	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>'
 
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
@@ -178,6 +179,7 @@ def parseArgs():
 	global no_newline
 	global parse_location
 	global idclass
+	global no_uikit
 
 	skip = False
 
@@ -195,6 +197,8 @@ def parseArgs():
 					help = True
 				elif c == 'c':
 					idclass = True
+				elif c == 'u':
+					no_uikit = True
 		elif a in ('-s', '--sep'):
 			sep = True
 		elif a in ('-f', '--file'):
@@ -218,6 +222,8 @@ def parseArgs():
 				skip = True
 		elif a in ('-c', '--class'):
 			idclass = True
+		elif a in ('-u', '--uikit'):
+			no_uikit = True
 		elif n == len(argv) - 1:
 			parse_location = a
 		else:
@@ -240,6 +246,7 @@ def printHelp():
 	    -c, --class   : Will print the class each time it logs an object of type \033[1mid\033[0m
 	    -p, --prefix  : Allows you to specify a custom prefix, passed in directly after this flag (e.g. \033[1m-p "MYLOG"\033[0m ; without this flag, everything
 	                    will be logged with the prefix "NSLG"
+	    -u, --uikit   : Don't \033[1m#include <UIKit/UIKit.h>\033[0m at the top of the produced file.
 	'''
 
 	print(help_msg)
@@ -252,11 +259,14 @@ def main():
 	if help or len(argv) == 1:
 		printHelp()
 
-	ostr = separated() if sep else together()
-	for i in extra_types:
-		print(f'@interface {i}\n@end\n')
+	if len(parse_location) == 0:
+		print('Please input a file to parse')
+	else:
+		ostr = separated() if sep else together()
+		for i in extra_types:
+			print(f'@interface {i}\n@end\n')
 
-	print(ostr)
+		print(ostr)
 
 if __name__ == '__main__':
 	main()
