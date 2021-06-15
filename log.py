@@ -107,7 +107,7 @@ def getLogString(funcname, interface):
 	return funcname + ' {\n' + orig_string + ('\n' if orig_string != '' else '') + log_string + '\n' + nslog + '\n' + ret_string + '\n}'
 
 def together():
-	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>'
+	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>\n\n'
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
 		interface = ''
