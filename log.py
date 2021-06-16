@@ -129,7 +129,7 @@ def together():
 
 def separated():
 	hook_called = False
-	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>'
+	ostr = '' if no_uikit else '#import <UIKit/UIKit.h>\n\n'
 
 	with open(parse_location, 'r') as file:
 		lines = file.readlines()
